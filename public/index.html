@@ -3,213 +3,369 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Conversor TXT → XML | Amazon Seller Central</title>
+  <title>Conversor XML → Excel | Amazon Orders</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
       font-family: 'Segoe UI', Arial, sans-serif;
-      background: #f0f2f5;
+      background: #f0f4f8;
       min-height: 100vh;
       display: flex;
-      flex-direction: column;
       align-items: center;
-      justify-content: flex-start;
-      padding: 40px 16px;
+      justify-content: center;
+      padding: 24px;
     }
+
     .card {
       background: #fff;
       border-radius: 12px;
       box-shadow: 0 4px 24px rgba(0,0,0,0.10);
-      padding: 40px 36px;
-      max-width: 540px;
+      max-width: 560px;
       width: 100%;
+      padding: 40px 36px 36px;
     }
+
     .logo {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
       margin-bottom: 28px;
     }
-    .logo-icon {
-      background: #ff9900;
-      color: #fff;
-      font-size: 22px;
+
+    .logo svg { flex-shrink: 0; }
+
+    h1 {
+      font-size: 1.35rem;
       font-weight: 700;
-      border-radius: 8px;
-      width: 44px;
-      height: 44px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      color: #1a202c;
     }
-    .logo-text h1 { font-size: 18px; font-weight: 700; color: #1a1a2e; }
-    .logo-text p  { font-size: 12px; color: #888; margin-top: 1px; }
+
+    .subtitle {
+      font-size: 0.875rem;
+      color: #718096;
+      margin-top: 2px;
+    }
+
     .drop-zone {
-      border: 2px dashed #d0d7de;
+      border: 2px dashed #cbd5e0;
       border-radius: 10px;
       padding: 36px 20px;
       text-align: center;
       cursor: pointer;
       transition: border-color 0.2s, background 0.2s;
-      margin-bottom: 22px;
-      background: #fafbfc;
+      margin-top: 8px;
     }
-    .drop-zone:hover, .drop-zone.dragover { border-color: #ff9900; background: #fff8ee; }
-    .drop-zone .icon { font-size: 38px; margin-bottom: 10px; display: block; }
-    .drop-zone p    { color: #555; font-size: 14px; }
-    .drop-zone .hint { font-size: 12px; color: #aaa; margin-top: 6px; }
-    #fileInput { display: none; }
-    .file-ok { background: #eaf6ec !important; border-color: #57a86e !important; }
-    .file-ok .icon { font-size: 22px; margin-bottom: 4px; }
-    .filename { font-weight: 600; color: #2d6a4f; font-size: 14px; word-break: break-all; }
-    .btn {
-      display: block; width: 100%; padding: 14px;
-      background: #ff9900; color: #fff;
-      font-size: 16px; font-weight: 700;
-      border: none; border-radius: 8px;
-      cursor: pointer; transition: background 0.2s, opacity 0.2s;
+
+    .drop-zone:hover, .drop-zone.drag-over {
+      border-color: #f90;
+      background: #fffbf0;
     }
-    .btn:hover:not(:disabled) { background: #e08800; }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .status { margin-top: 18px; min-height: 24px; font-size: 14px; text-align: center; }
-    .status.error   { color: #c0392b; font-weight: 600; }
-    .status.success { color: #27ae60; font-weight: 600; }
-    .info {
-      margin-top: 28px; background: #f8f9fa;
-      border-radius: 8px; padding: 16px 18px;
-      font-size: 13px; color: #555; line-height: 1.6;
+
+    .drop-zone input { display: none; }
+
+    .drop-icon { font-size: 2.5rem; margin-bottom: 10px; }
+
+    .drop-text {
+      font-size: 0.95rem;
+      color: #4a5568;
     }
-    .info strong { color: #333; }
-    .footer { margin-top: 32px; font-size: 12px; color: #aaa; }
+
+    .drop-text span {
+      color: #d97706;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: underline dotted;
+    }
+
+    .file-ext {
+      font-size: 0.78rem;
+      color: #a0aec0;
+      margin-top: 6px;
+    }
+
+    /* Status bar */
+    .status {
+      margin-top: 18px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      display: none;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .status.info    { display: flex; background: #ebf8ff; color: #2b6cb0; }
+    .status.success { display: flex; background: #f0fff4; color: #276749; }
+    .status.error   { display: flex; background: #fff5f5; color: #c53030; }
+
+    .status-icon { font-size: 1.1rem; flex-shrink: 0; }
+
+    /* Preview table */
+    .preview-wrap {
+      margin-top: 20px;
+      overflow-x: auto;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      display: none;
+    }
+
+    table {
+      border-collapse: collapse;
+      font-size: 0.76rem;
+      white-space: nowrap;
+      width: 100%;
+    }
+
+    thead tr { background: #f7fafc; }
+
+    th, td {
+      padding: 6px 10px;
+      border-bottom: 1px solid #e2e8f0;
+      border-right: 1px solid #e2e8f0;
+      text-align: left;
+    }
+
+    th { font-weight: 600; color: #4a5568; position: sticky; top: 0; background: #f7fafc; }
+
+    .preview-note {
+      font-size: 0.75rem;
+      color: #a0aec0;
+      margin-top: 6px;
+      text-align: right;
+    }
+
+    /* Download button */
+    .btn-download {
+      display: none;
+      width: 100%;
+      margin-top: 20px;
+      padding: 13px;
+      background: #f90;
+      color: #fff;
+      font-size: 0.95rem;
+      font-weight: 700;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      letter-spacing: 0.02em;
+      transition: background 0.2s, transform 0.1s;
+    }
+
+    .btn-download:hover { background: #e68900; }
+    .btn-download:active { transform: scale(0.98); }
+
+    .reset-link {
+      display: block;
+      text-align: center;
+      margin-top: 14px;
+      font-size: 0.82rem;
+      color: #a0aec0;
+      cursor: pointer;
+      text-decoration: underline dotted;
+    }
+
+    .reset-link:hover { color: #718096; }
+
+    footer {
+      margin-top: 28px;
+      font-size: 0.75rem;
+      color: #cbd5e0;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
-
 <div class="card">
   <div class="logo">
-    <div class="logo-icon">TX</div>
-    <div class="logo-text">
-      <h1>Conversor TXT → XML</h1>
-      <p>Amazon Seller Central · DocBook</p>
+    <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="36" height="36" rx="8" fill="#FF9900"/>
+      <path d="M8 18L16 10L24 18L16 26L8 18Z" fill="white" fill-opacity="0.9"/>
+      <rect x="19" y="12" width="10" height="12" rx="2" fill="white" fill-opacity="0.9"/>
+    </svg>
+    <div>
+      <h1>Conversor XML → Excel</h1>
+      <div class="subtitle">Pedidos Amazon · formato .xlsx</div>
     </div>
   </div>
 
+  <!-- Drop zone -->
   <div class="drop-zone" id="dropZone">
-    <span class="icon">📄</span>
-    <p>Arraste o arquivo <strong>.txt</strong> aqui</p>
-    <p class="hint">ou clique para selecionar</p>
-    <input type="file" id="fileInput" accept=".txt" />
+    <input type="file" id="fileInput" accept=".xml,text/xml,application/xml" />
+    <div class="drop-icon">📄</div>
+    <div class="drop-text">
+      Arraste o arquivo XML aqui ou
+      <span onclick="document.getElementById('fileInput').click()">clique para selecionar</span>
+    </div>
+    <div class="file-ext">Apenas arquivos .xml</div>
   </div>
 
-  <button class="btn" id="convertBtn" disabled>Converter e Baixar XML</button>
-  <div class="status" id="status"></div>
-
-  <div class="info">
-    <strong>Como funciona:</strong><br>
-    1. Selecione o arquivo <code>.txt</code> exportado do Seller Central<br>
-    2. Clique em <em>Converter</em><br>
-    3. O <code>.xml</code> no formato DocBook será baixado automaticamente<br><br>
-    ✅ Processamento 100% local — nenhum dado é enviado para servidor
+  <!-- Status -->
+  <div class="status" id="status">
+    <span class="status-icon" id="statusIcon"></span>
+    <span id="statusText"></span>
   </div>
+
+  <!-- Preview -->
+  <div class="preview-wrap" id="previewWrap">
+    <table id="previewTable"></table>
+  </div>
+  <div class="preview-note" id="previewNote"></div>
+
+  <!-- Download -->
+  <button class="btn-download" id="btnDownload" onclick="downloadExcel()">
+    ⬇ Baixar Excel (.xlsx)
+  </button>
+  <span class="reset-link" id="resetLink" style="display:none" onclick="reset()">Converter outro arquivo</span>
+
+  <footer>Os dados são processados localmente · nenhuma informação é enviada para servidores</footer>
 </div>
 
-<div class="footer">Conversor local · Nenhum dado armazenado</div>
-
 <script>
-  const dropZone  = document.getElementById('dropZone');
-  const fileInput = document.getElementById('fileInput');
-  const btn       = document.getElementById('convertBtn');
-  const status    = document.getElementById('status');
-  let selectedFile = null;
+  /* ── state ── */
+  let parsedRows = [];    // [{col: val, ...}, ...]
+  let headers = [];
+  let outputFilename = 'pedidos_amazon.xlsx';
 
-  dropZone.addEventListener('click', () => fileInput.click());
-  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
-  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-  dropZone.addEventListener('drop', e => {
-    e.preventDefault();
-    dropZone.classList.remove('dragover');
-    if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
-  });
-  fileInput.addEventListener('change', () => { if (fileInput.files[0]) setFile(fileInput.files[0]); });
+  /* ── helpers ── */
+  function setStatus(type, icon, text) {
+    const el = document.getElementById('status');
+    el.className = 'status ' + type;
+    document.getElementById('statusIcon').textContent = icon;
+    document.getElementById('statusText').textContent = text;
+  }
 
-  function setFile(file) {
-    if (!file.name.toLowerCase().endsWith('.txt')) {
-      setStatus('error', '⚠️ Selecione um arquivo .txt');
+  function parseXml(xmlText) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(xmlText, 'application/xml');
+    const parseError = doc.querySelector('parsererror');
+    if (parseError) throw new Error('XML inválido: ' + parseError.textContent.slice(0, 120));
+
+    const paras = Array.from(doc.querySelectorAll('para'));
+    if (paras.length < 2) throw new Error('Nenhum dado encontrado no XML (esperado ao menos 2 elementos <para>).');
+
+    // First <para> = header row; split by tab (&#9;) or sequences of spaces ≥2
+    const splitRow = text => text
+      .replace(/\r|\n/g, '')
+      .split(/\t/)
+      .map(s => s.trim());
+
+    const rawHeaders = splitRow(paras[0].textContent);
+    headers = rawHeaders.filter(h => h.length > 0);
+
+    const rows = [];
+    for (let i = 1; i < paras.length; i++) {
+      const cells = splitRow(paras[i].textContent);
+      // Pad or trim to match header count
+      while (cells.length < headers.length) cells.push('');
+      const obj = {};
+      headers.forEach((h, idx) => { obj[h] = cells[idx] ?? ''; });
+      rows.push(obj);
+    }
+    return rows;
+  }
+
+  function buildPreview(rows) {
+    const MAX = 5;
+    const wrap = document.getElementById('previewWrap');
+    const tbl = document.getElementById('previewTable');
+    const note = document.getElementById('previewNote');
+
+    // Show only first 8 columns to fit screen
+    const visibleHeaders = headers.slice(0, 8);
+
+    let html = '<thead><tr>' + visibleHeaders.map(h => `<th>${h}</th>`).join('') + '</tr></thead><tbody>';
+    rows.slice(0, MAX).forEach(row => {
+      html += '<tr>' + visibleHeaders.map(h => `<td>${row[h] ?? ''}</td>`).join('') + '</tr>';
+    });
+    html += '</tbody>';
+    tbl.innerHTML = html;
+
+    note.textContent = `Pré-visualização: ${Math.min(MAX, rows.length)} de ${rows.length} linha(s) · ${headers.length} colunas`;
+    wrap.style.display = 'block';
+    note.style.display = 'block';
+  }
+
+  function downloadExcel() {
+    if (!parsedRows.length) return;
+
+    // Build worksheet from array of objects — preserves column order
+    const ws = XLSX.utils.json_to_sheet(parsedRows, { header: headers });
+
+    // Style header row (bold via sheetview — basic, SheetJS CE doesn't do full styles)
+    // Set column widths heuristically
+    const colWidths = headers.map(h => {
+      const maxLen = Math.max(
+        h.length,
+        ...parsedRows.slice(0, 20).map(r => String(r[h] ?? '').length)
+      );
+      return { wch: Math.min(Math.max(maxLen + 2, 10), 50) };
+    });
+    ws['!cols'] = colWidths;
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Pedidos');
+
+    XLSX.writeFile(wb, outputFilename);
+    setStatus('success', '✅', `Download iniciado: ${outputFilename}`);
+  }
+
+  function processFile(file) {
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.xml')) {
+      setStatus('error', '❌', 'Por favor, selecione um arquivo .xml válido.');
       return;
     }
-    selectedFile = file;
-    dropZone.className = 'drop-zone file-ok';
-    dropZone.innerHTML = `
-      <span class="icon">✅</span>
-      <p class="filename">${file.name}</p>
-      <p class="hint">${(file.size/1024).toFixed(1)} KB · clique para trocar</p>
-      <input type="file" id="fileInput" accept=".txt" style="display:none" />
-    `;
-    dropZone.querySelector('input').addEventListener('change', e => {
-      if (e.target.files[0]) setFile(e.target.files[0]);
-    });
-    dropZone.addEventListener('click', () => dropZone.querySelector('input').click());
-    btn.disabled = false;
-    setStatus('', '');
-  }
 
-  btn.addEventListener('click', () => {
-    if (!selectedFile) return;
+    outputFilename = file.name.replace(/\.xml$/i, '') + '.xlsx';
+    setStatus('info', '⏳', 'Lendo e processando o arquivo…');
+
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = e => {
       try {
-        const raw = e.target.result;
-        const xml = convertToXml(raw);
-        const blob = new Blob([xml], { type: 'application/xml;charset=utf-8' });
-        const baseName = selectedFile.name.replace(/\.txt$/i, '');
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = baseName + '.xml';
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-        setStatus('success', '✅ XML gerado e baixado com sucesso!');
-      } catch(err) {
-        setStatus('error', '❌ ' + err.message);
+        parsedRows = parseXml(e.target.result);
+        buildPreview(parsedRows);
+        setStatus('success', '✅', `${parsedRows.length} linha(s) carregada(s) com sucesso · ${headers.length} colunas detectadas.`);
+        document.getElementById('btnDownload').style.display = 'block';
+        document.getElementById('resetLink').style.display = 'block';
+        document.getElementById('dropZone').style.pointerEvents = 'none';
+        document.getElementById('dropZone').style.opacity = '0.5';
+      } catch (err) {
+        setStatus('error', '❌', err.message);
       }
     };
-    reader.readAsBinaryString(selectedFile);
+    reader.onerror = () => setStatus('error', '❌', 'Erro ao ler o arquivo.');
+    reader.readAsText(file, 'UTF-8');
+  }
+
+  function reset() {
+    parsedRows = []; headers = [];
+    document.getElementById('fileInput').value = '';
+    document.getElementById('status').className = 'status';
+    document.getElementById('previewWrap').style.display = 'none';
+    document.getElementById('previewNote').style.display = 'none';
+    document.getElementById('btnDownload').style.display = 'none';
+    document.getElementById('resetLink').style.display = 'none';
+    document.getElementById('dropZone').style.pointerEvents = '';
+    document.getElementById('dropZone').style.opacity = '';
+    document.getElementById('previewTable').innerHTML = '';
+  }
+
+  /* ── events ── */
+  document.getElementById('fileInput').addEventListener('change', e => {
+    processFile(e.target.files[0]);
   });
 
-  function escapeXml(str) {
-    return str
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
-  }
-
-  function convertToXml(raw) {
-    const rawLines = raw.split('\n');
-    if (rawLines[rawLines.length - 1].trim() === '') rawLines.pop();
-
-    const paras = rawLines.map(line => {
-      const hasCR = line.endsWith('\r');
-      const content = hasCR ? line.slice(0, -1) : line;
-      const spaced = content.replace(/\t/g, '        ');
-      const escaped = escapeXml(spaced);
-      return '  <para>' + escaped + (hasCR ? '&#13;' : '') + '</para>';
-    }).join('\n');
-
-    return '<?xml version="1.0" encoding="UTF-8"?>\n' +
-      '<!DOCTYPE article PUBLIC "-//OASIS//DTD DocBook XML V4.1.2//EN" ' +
-      '"http://www.oasis-open.org/docbook/xml/4.1.2/docbookx.dtd">\n' +
-      '<article lang="">\n' +
-      paras + '\n' +
-      '</article>\n';
-  }
-
-  function setStatus(type, html) {
-    status.className = 'status ' + type;
-    status.innerHTML = html;
-  }
+  const dz = document.getElementById('dropZone');
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault();
+    dz.classList.remove('drag-over');
+    processFile(e.dataTransfer.files[0]);
+  });
 </script>
 </body>
 </html>
+
