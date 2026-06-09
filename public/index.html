@@ -128,13 +128,6 @@ body {
   font-size: 13px; color: #555; line-height: 1.7;
 }
 .info strong { color: #333; }
-.badge {
-  display: inline-block;
-  padding: 1px 7px; border-radius: 10px;
-  font-size: 11px; font-weight: 700; margin-right: 4px;
-}
-.badge-xml { background: #e8f4fd; color: #2980b9; }
-.badge-xlsx { background: #eafaf1; color: #27ae60; }
 .footer { margin-top: 32px; font-size: 12px; color: #aaa; }
 </style>
 </head>
@@ -149,15 +142,15 @@ body {
   </div>
 
   <div class="tabs">
-    <div class="tab active" id="tab-xlsx" onclick="setMode('xlsx')">📊 XLSX mal-separado → Excel</div>
+    <div class="tab active" id="tab-excel" onclick="setMode('excel')">📊 Relatório (TXT ou XLSX) → Excel</div>
     <div class="tab" id="tab-xml" onclick="setMode('xml')">📄 TXT → XML DocBook</div>
   </div>
 
   <div class="drop-zone" id="dropZone">
     <span class="icon">📊</span>
-    <p>Arraste o arquivo <strong id="acceptLabel">.xlsx</strong> aqui</p>
+    <p>Arraste o arquivo <strong id="acceptLabel">.txt ou .xlsx</strong> aqui</p>
     <p class="hint">ou clique para selecionar</p>
-    <input type="file" id="fileInput" accept=".xlsx" />
+    <input type="file" id="fileInput" accept=".txt,.xlsx" />
   </div>
 
   <button class="btn" id="convertBtn" disabled>Converter e Baixar</button>
@@ -169,10 +162,10 @@ body {
   </div>
 
   <div class="info" id="infoBox">
-    <strong>Modo atual: XLSX mal-separado → Excel</strong><br>
-    Aceita o relatório de pedidos da Amazon exportado como <code>.xlsx</code> onde todos os dados ficam em uma única coluna separados por espaços especiais (<code>\xa0</code>).<br><br>
+    <strong>Modo atual: Relatório → Excel</strong><br>
+    Aceita o relatório de pedidos da Amazon exportado como <code>.txt</code> (separado por abas) ou <code>.xlsx</code> (com problema de separação).<br><br>
     ✅ Separa automaticamente em <strong>37 colunas</strong> no formato padrão<br>
-    ✅ Numeração <strong>Ref.</strong> automática continuando do registro anterior<br>
+    ✅ Numeração <strong>Ref.</strong> automática<br>
     ✅ Processamento 100% local — nenhum dado enviado para servidor
   </div>
 </div>
@@ -180,7 +173,7 @@ body {
 
 <script src="Converter.js"></script>
 <script>
-let mode = 'xlsx';
+let mode = 'excel';
 let selectedFile = null;
 
 const dropZone = document.getElementById('dropZone');
@@ -199,16 +192,16 @@ function setMode(m) {
   setStatus('', '');
   previewSection.style.display = 'none';
 
-  document.getElementById('tab-xlsx').className = 'tab' + (m === 'xlsx' ? ' active' : '');
+  document.getElementById('tab-excel').className = 'tab' + (m === 'excel' ? ' active' : '');
   document.getElementById('tab-xml').className = 'tab' + (m === 'xml' ? ' active' : '');
 
-  if (m === 'xlsx') {
-    fileInput.accept = '.xlsx';
-    acceptLabel.textContent = '.xlsx';
-    infoBox.innerHTML = `<strong>Modo atual: XLSX mal-separado → Excel</strong><br>
-      Aceita o relatório de pedidos da Amazon exportado como <code>.xlsx</code> onde todos os dados ficam em uma única coluna separados por espaços especiais (<code>\\xa0</code>).<br><br>
+  if (m === 'excel') {
+    fileInput.accept = '.txt,.xlsx';
+    acceptLabel.textContent = '.txt ou .xlsx';
+    infoBox.innerHTML = `<strong>Modo atual: Relatório → Excel</strong><br>
+      Aceita o relatório de pedidos da Amazon exportado como <code>.txt</code> (separado por abas) ou <code>.xlsx</code> (com problema de separação).<br><br>
       ✅ Separa automaticamente em <strong>37 colunas</strong> no formato padrão<br>
-      ✅ Numeração <strong>Ref.</strong> automática continuando do registro anterior<br>
+      ✅ Numeração <strong>Ref.</strong> automática<br>
       ✅ Processamento 100% local — nenhum dado enviado para servidor`;
   } else {
     fileInput.accept = '.txt';
@@ -226,10 +219,10 @@ function setMode(m) {
 function resetDropZone() {
   dropZone.className = 'drop-zone';
   dropZone.innerHTML = `
-    <span class="icon">${mode === 'xlsx' ? '📊' : '📄'}</span>
-    <p>Arraste o arquivo <strong id="acceptLabel">.${mode === 'xlsx' ? 'xlsx' : 'txt'}</strong> aqui</p>
+    <span class="icon">${mode === 'excel' ? '📊' : '📄'}</span>
+    <p>Arraste o arquivo <strong id="acceptLabel">${mode === 'excel' ? '.txt ou .xlsx' : '.txt'}</strong> aqui</p>
     <p class="hint">ou clique para selecionar</p>
-    <input type="file" id="fileInput" accept="${mode === 'xlsx' ? '.xlsx' : '.txt'}" />
+    <input type="file" id="fileInput" accept="${mode === 'excel' ? '.txt,.xlsx' : '.txt'}" />
   `;
   const newInput = dropZone.querySelector('input');
   newInput.addEventListener('change', () => { if (newInput.files[0]) setFile(newInput.files[0]); });
@@ -248,18 +241,23 @@ fileInput.addEventListener('change', () => { if (fileInput.files[0]) setFile(fil
 
 function setFile(file) {
   const ext = file.name.split('.').pop().toLowerCase();
-  const expected = mode === 'xlsx' ? 'xlsx' : 'txt';
-  if (ext !== expected) {
-    setStatus('error', `⚠️ Selecione um arquivo .${expected}`);
+  
+  if (mode === 'excel' && ext !== 'txt' && ext !== 'xlsx') {
+    setStatus('error', `⚠️ Selecione um arquivo .txt ou .xlsx`);
     return;
   }
+  if (mode === 'xml' && ext !== 'txt') {
+    setStatus('error', `⚠️ Selecione um arquivo .txt`);
+    return;
+  }
+
   selectedFile = file;
   dropZone.className = 'drop-zone file-ok';
   dropZone.innerHTML = `
     <span class="icon">✅</span>
     <p class="filename">${file.name}</p>
     <p class="hint">${(file.size/1024).toFixed(1)} KB · clique para trocar</p>
-    <input type="file" accept=".${expected}" style="display:none" />
+    <input type="file" accept="${mode === 'excel' ? '.txt,.xlsx' : '.txt'}" style="display:none" />
   `;
   const inp = dropZone.querySelector('input');
   inp.addEventListener('change', e => { if (e.target.files[0]) setFile(e.target.files[0]); });
@@ -271,31 +269,45 @@ function setFile(file) {
 
 btn.addEventListener('click', () => {
   if (!selectedFile) return;
-  if (mode === 'xlsx') {
-    convertXlsx(selectedFile);
+  if (mode === 'excel') {
+    convertExcel(selectedFile);
   } else {
     convertXml(selectedFile);
   }
 });
 
-function convertXlsx(file) {
+function convertExcel(file) {
   setStatus('', '⏳ Processando...');
+  const ext = file.name.split('.').pop().toLowerCase();
   const reader = new FileReader();
+  
   reader.onload = function(e) {
     try {
-      const result = window.AmazonConverter.parseXlsx(new Uint8Array(e.target.result));
+      let result;
+      // Se for TXT, passa o texto. Se for XLSX, passa o ArrayBuffer.
+      if (ext === 'txt') {
+        result = window.AmazonConverter.parseTxt(e.target.result);
+      } else {
+        result = window.AmazonConverter.parseXlsx(new Uint8Array(e.target.result));
+      }
+
       showPreview(result.headers, result.rows);
       const wb = window.AmazonConverter.buildWorkbook(result.headers, result.rows);
       const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
       downloadBlob(new Blob([wbout], { type: 'application/octet-stream' }),
-        file.name.replace(/\.xlsx$/i, '') + '_convertido.xlsx');
+        file.name.replace(/\.(xlsx|txt)$/i, '') + '_convertido.xlsx');
       setStatus('success', `✅ Sucesso! ${result.rows.length} linhas · ${result.headers.length} colunas`);
     } catch(err) {
-      setStatus('error', '❌ ' + err.message);
+      setStatus('error', '❌ Erro: ' + err.message);
       console.error(err);
     }
   };
-  reader.readAsArrayBuffer(file);
+
+  if (ext === 'txt') {
+    reader.readAsText(file, 'utf-8');
+  } else {
+    reader.readAsArrayBuffer(file);
+  }
 }
 
 function convertXml(file) {
@@ -308,7 +320,7 @@ function convertXml(file) {
         file.name.replace(/\.txt$/i, '') + '.xml');
       setStatus('success', '✅ XML gerado e baixado com sucesso!');
     } catch(err) {
-      setStatus('error', '❌ ' + err.message);
+      setStatus('error', '❌ Erro: ' + err.message);
     }
   };
   reader.readAsBinaryString(file);
