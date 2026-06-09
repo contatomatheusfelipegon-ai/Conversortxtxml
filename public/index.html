@@ -165,14 +165,153 @@ body {
     <strong>Modo atual: Relatório → Excel</strong><br>
     Aceita o relatório de pedidos da Amazon exportado como <code>.txt</code> (separado por abas) ou <code>.xlsx</code> (com problema de separação).<br><br>
     ✅ Separa automaticamente em <strong>37 colunas</strong> no formato padrão<br>
-    ✅ Numeração <strong>Ref.</strong> automática<br>
+    ✅ Numeração <strong>Ref.</strong> automática sequencial<br>
     ✅ Processamento 100% local — nenhum dado enviado para servidor
   </div>
 </div>
 <div class="footer">Conversor local · Nenhum dado armazenado</div>
 
-<script src="Converter.js"></script>
 <script>
+// ============================================================================
+// NÚCLEO DO CONVERSOR (Antigo Converter.js - Embutido para evitar erros de 404)
+// ============================================================================
+const MODEL_COLS = [
+  'amazon-order-id', 'merchant-order-id', 'purchase-date', 'last-updated-date',
+  'order-status', 'fulfillment-channel', 'sales-channel', 'order-channel',
+  'url', 'ship-service-level', 'product-name', 'sku', 'asin', 'item-status',
+  'quantity', 'currency', 'item-price', 'item-tax', 'shipping-price',
+  'shipping-tax', 'gift-wrap-price', 'gift-wrap-tax', 'item-promotion-discount',
+  'ship-promotion-discount', 'ship-city', 'ship-state', 'ship-postal-code',
+  'ship-country', 'promotion-ids', 'payment-method-details', 'cpf',
+  'ship-county', 'item-extensions-data', 'is-business-order',
+  'purchase-order-number', 'price-designation',
+];
+
+const SEP_XLSX = '\xa0 \xa0 \xa0 \xa0 ';
+
+const AmazonConverter = {
+  // Faz o parse do arquivo bruto .txt (TSV) da Amazon
+  parseTxt(textContent) {
+    const lines = textContent.split(/\r?\n/).filter(line => line.trim() !== '');
+    if (!lines.length) throw new Error('O arquivo TXT está vazio.');
+
+    const sourceHeaders = lines[0].split('\t').map(h => h.trim());
+    const dataRows = lines.slice(1).map(line => {
+      const parts = line.split('\t').map(v => v.trim());
+      const obj = {};
+      sourceHeaders.forEach((h, i) => { obj[h] = parts[i] !== undefined ? parts[i] : ''; });
+      return obj;
+    });
+
+    return this.mapToModel(dataRows);
+  },
+
+  // Faz o parse do arquivo .xlsx compactado/mal-separado
+  parseXlsx(arrayBuffer) {
+    const wb = XLSX.read(arrayBuffer, { type: 'array' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rawRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+    if (!rawRows.length) throw new Error('O arquivo XLSX está vazio.');
+
+    const headerRow = String(rawRows[0][0] || '');
+    const isMalSep = headerRow.includes(SEP_XLSX);
+
+    let sourceHeaders, dataRows;
+
+    if (isMalSep) {
+      sourceHeaders = headerRow.split(SEP_XLSX).map(h => h.trim());
+      dataRows = rawRows.slice(1).map(row => {
+        const parts = String(row[0] || '').split(SEP_XLSX).map(v => v.trim());
+        const obj = {};
+        sourceHeaders.forEach((h, i) => { obj[h] = parts[i] !== undefined ? parts[i] : ''; });
+        return obj;
+      });
+    } else {
+      const jsonRows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      sourceHeaders = Object.keys(jsonRows[0] || {});
+      dataRows = jsonRows;
+    }
+
+    return this.mapToModel(dataRows);
+  },
+
+  // Formata os dados extraídos mapeando estritamente para as colunas do modelo e aplicando a coluna Ref.
+  mapToModel(dataRows) {
+    const finalHeaders = ['Ref.', ...MODEL_COLS];
+    const finalRows = dataRows.map((src, idx) => {
+      const out = { 'Ref.': idx + 1 };
+      MODEL_COLS.forEach(col => {
+        let val = src[col];
+        if (val === undefined) {
+          const found = Object.keys(src).find(k => k.trim().toLowerCase() === col.toLowerCase());
+          val = found ? src[found] : '';
+        }
+        out[col] = val !== undefined && val !== null ? String(val).trim() : '';
+      });
+      return out;
+    });
+
+    return { headers: finalHeaders, rows: finalRows };
+  },
+
+  // Cria a estrutura visual da planilha estruturada (.xlsx)
+  buildWorkbook(headers, rows) {
+    const wb = XLSX.utils.book_new();
+    const sheetData = [headers];
+    
+    rows.forEach(row => {
+      sheetData.push(headers.map(h => row[h] !== undefined ? row[h] : ''));
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(sheetData);
+
+    ws['!cols'] = headers.map(h => {
+      const maxLen = Math.max(h.length, 14);
+      if (h === 'product-name') return { wch: 50 };
+      if (h === 'Ref.') return { wch: 6 };
+      if (['purchase-date', 'last-updated-date'].includes(h)) return { wch: 22 };
+      if (['cpf', 'amazon-order-id'].includes(h)) return { wch: 20 };
+      return { wch: Math.min(maxLen + 4, 30) };
+    });
+
+    XLSX.utils.book_append_sheet(wb, ws, 'Planilha1');
+    return wb;
+  },
+
+  // Converte o TXT original para XML DocBook
+  toXml(rawBinary) {
+    const lines = rawBinary.split('\n');
+    if (lines.length && lines[lines.length - 1].trim() === '') lines.pop();
+
+    const paras = lines.map(line => {
+      const hasCR = line.endsWith('\r');
+      const content = hasCR ? line.slice(0, -1) : line;
+      const spaced = content.replace(/\t/g, '        ');
+      const escaped = this.escapeXml(spaced);
+      return '  <para>' + escaped + (hasCR ? '&#13;' : '') + '</para>';
+    }).join('\n');
+
+    return '<?xml version="1.0" encoding="UTF-8"?>\n' +
+      '<!DOCTYPE article PUBLIC "-//OASIS//DTD DocBook XML V4.1.2//EN" ' +
+      '"http://www.oasis-open.org/docbook/xml/4.1.2/docbookx.dtd">\n' +
+      '<article lang="">\n' +
+      paras + '\n' +
+      '</article>\n';
+  },
+
+  escapeXml(str) {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+};
+
+// ============================================================================
+// LÓGICA DO FRONT-END / INTERAÇÃO DO USUÁRIO
+// ============================================================================
 let mode = 'excel';
 let selectedFile = null;
 
@@ -201,7 +340,7 @@ function setMode(m) {
     infoBox.innerHTML = `<strong>Modo atual: Relatório → Excel</strong><br>
       Aceita o relatório de pedidos da Amazon exportado como <code>.txt</code> (separado por abas) ou <code>.xlsx</code> (com problema de separação).<br><br>
       ✅ Separa automaticamente em <strong>37 colunas</strong> no formato padrão<br>
-      ✅ Numeração <strong>Ref.</strong> automática<br>
+      ✅ Numeração <strong>Ref.</strong> automática sequencial<br>
       ✅ Processamento 100% local — nenhum dado enviado para servidor`;
   } else {
     fileInput.accept = '.txt';
@@ -284,15 +423,14 @@ function convertExcel(file) {
   reader.onload = function(e) {
     try {
       let result;
-      // Se for TXT, passa o texto. Se for XLSX, passa o ArrayBuffer.
       if (ext === 'txt') {
-        result = window.AmazonConverter.parseTxt(e.target.result);
+        result = AmazonConverter.parseTxt(e.target.result);
       } else {
-        result = window.AmazonConverter.parseXlsx(new Uint8Array(e.target.result));
+        result = AmazonConverter.parseXlsx(new Uint8Array(e.target.result));
       }
 
       showPreview(result.headers, result.rows);
-      const wb = window.AmazonConverter.buildWorkbook(result.headers, result.rows);
+      const wb = AmazonConverter.buildWorkbook(result.headers, result.rows);
       const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
       downloadBlob(new Blob([wbout], { type: 'application/octet-stream' }),
         file.name.replace(/\.(xlsx|txt)$/i, '') + '_convertido.xlsx');
@@ -315,7 +453,7 @@ function convertXml(file) {
   const reader = new FileReader();
   reader.onload = function(e) {
     try {
-      const xml = window.AmazonConverter.toXml(e.target.result);
+      const xml = AmazonConverter.toXml(e.target.result);
       downloadBlob(new Blob([xml], { type: 'application/xml;charset=utf-8' }),
         file.name.replace(/\.txt$/i, '') + '.xml');
       setStatus('success', '✅ XML gerado e baixado com sucesso!');
