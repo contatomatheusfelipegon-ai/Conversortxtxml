@@ -3,178 +3,453 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Conversor Amazon → Excel | Seller Central</title>
+<title>Conversor Amazon → Excel</title>
+<!-- SheetJS para leitura/escrita de XLSX -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body {
-  font-family: 'Segoe UI', Arial, sans-serif;
-  background: #f0f2f5;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  padding: 40px 16px;
-}
-.card {
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.10);
-  padding: 40px 36px;
-  max-width: 580px;
-  width: 100%;
-}
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 28px;
-}
-.logo-icon {
-  background: #ff9900;
-  color: #fff;
-  font-size: 20px;
-  font-weight: 700;
-  border-radius: 8px;
-  width: 44px;
-  height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.logo-text h1 { font-size: 18px; font-weight: 700; color: #1a1a2e; }
-.logo-text p { font-size: 12px; color: #888; margin-top: 1px; }
+  /* =====================================================================
+     RESET & BASE — Material Design 3 tokens
+  ===================================================================== */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-.tabs {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 22px;
-}
-.tab {
-  flex: 1;
-  padding: 10px;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  background: #fafbfc;
-  font-size: 13px;
-  font-weight: 600;
-  color: #888;
-  cursor: pointer;
-  text-align: center;
-  transition: all 0.2s;
-}
-.tab.active {
-  border-color: #ff9900;
-  background: #fff8ee;
-  color: #cc7a00;
-}
+  :root {
+    /* Cores principais */
+    --md-primary: #FF6900;
+    --md-primary-container: #FFF0E6;
+    --md-on-primary: #FFFFFF;
+    --md-surface: #FFFFFF;
+    --md-surface-variant: #F5F5F5;
+    --md-surface-variant2: #FAFAFA;
+    --md-outline: #E0E0E0;
+    --md-outline-variant: #EEEEEE;
+    --md-on-surface: #1C1B1F;
+    --md-on-surface-muted: #757575;
+    --md-error: #B3261E;
+    --md-error-container: #FDECEA;
+    --md-success: #1E7E34;
+    --md-success-container: #E8F5E9;
+    --md-warning: #E65100;
 
-.drop-zone {
-  border: 2px dashed #d0d7de;
-  border-radius: 10px;
-  padding: 36px 20px;
-  text-align: center;
-  cursor: pointer;
-  transition: border-color 0.2s, background 0.2s;
-  margin-bottom: 22px;
-  background: #fafbfc;
-}
-.drop-zone:hover, .drop-zone.dragover { border-color: #ff9900; background: #fff8ee; }
-.drop-zone .icon { font-size: 38px; margin-bottom: 10px; display: block; }
-.drop-zone p { color: #555; font-size: 14px; }
-.drop-zone .hint { font-size: 12px; color: #aaa; margin-top: 6px; }
-#fileInput { display: none; }
-.file-ok { background: #eaf6ec !important; border-color: #57a86e !important; }
-.file-ok .icon { font-size: 22px; margin-bottom: 4px; }
-.filename { font-weight: 600; color: #2d6a4f; font-size: 14px; word-break: break-all; }
+    /* Elevation */
+    --shadow-1: 0 1px 2px rgba(0,0,0,.08), 0 2px 6px rgba(0,0,0,.06);
+    --shadow-2: 0 2px 8px rgba(0,0,0,.10), 0 4px 16px rgba(0,0,0,.08);
+    --shadow-3: 0 4px 20px rgba(0,0,0,.12), 0 8px 32px rgba(0,0,0,.08);
 
-.btn {
-  display: block; width: 100%; padding: 14px;
-  background: #ff9900; color: #fff;
-  font-size: 16px; font-weight: 700;
-  border: none; border-radius: 8px;
-  cursor: pointer; transition: background 0.2s, opacity 0.2s;
-}
-.btn:hover:not(:disabled) { background: #e08800; }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.status { margin-top: 18px; min-height: 24px; font-size: 14px; text-align: center; }
-.status.error { color: #c0392b; font-weight: 600; }
-.status.success { color: #27ae60; font-weight: 600; }
+    /* Tipografia */
+    --font: 'Google Sans', 'Segoe UI', Roboto, Arial, sans-serif;
 
-.preview-section {
-  margin-top: 24px;
-  display: none;
-}
-.preview-section h3 { font-size: 13px; font-weight: 700; color: #555; margin-bottom: 8px; }
-.preview-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid #e0e0e0; }
-.preview-wrap table { border-collapse: collapse; font-size: 11px; min-width: 100%; }
-.preview-wrap th {
-  background: #ff9900; color: #fff;
-  padding: 6px 10px; text-align: left;
-  white-space: nowrap; font-size: 10px;
-}
-.preview-wrap td {
-  padding: 5px 10px; border-bottom: 1px solid #f0f0f0;
-  color: #333; white-space: nowrap; max-width: 160px;
-  overflow: hidden; text-overflow: ellipsis;
-}
-.preview-wrap tr:last-child td { border-bottom: none; }
-.preview-wrap tr:nth-child(even) td { background: #fafbfc; }
+    /* Shape */
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 24px;
+  }
 
-.info {
-  margin-top: 28px; background: #f8f9fa;
-  border-radius: 8px; padding: 16px 18px;
-  font-size: 13px; color: #555; line-height: 1.7;
-}
-.info strong { color: #333; }
-.footer { margin-top: 32px; font-size: 12px; color: #aaa; }
+  body {
+    font-family: var(--font);
+    background: #F4F4F6;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 16px 64px;
+    color: var(--md-on-surface);
+  }
+
+  /* =====================================================================
+     APP SHELL
+  ===================================================================== */
+  .app-bar {
+    width: 100%;
+    max-width: 640px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+  .app-bar-icon {
+    width: 48px; height: 48px;
+    background: var(--md-primary);
+    border-radius: var(--radius-md);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    box-shadow: 0 2px 8px rgba(255,105,0,.35);
+    flex-shrink: 0;
+  }
+  .app-bar-text h1 { font-size: 20px; font-weight: 700; letter-spacing: -.3px; }
+  .app-bar-text p  { font-size: 13px; color: var(--md-on-surface-muted); margin-top: 2px; }
+
+  /* Card principal */
+  .card {
+    width: 100%;
+    max-width: 640px;
+    background: var(--md-surface);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-2);
+    padding: 32px 28px;
+  }
+
+  /* =====================================================================
+     DROP ZONE
+  ===================================================================== */
+  .drop-zone {
+    border: 2px dashed var(--md-outline);
+    border-radius: var(--radius-lg);
+    padding: 40px 24px;
+    text-align: center;
+    cursor: pointer;
+    background: var(--md-surface-variant2);
+    transition: border-color .2s ease, background .2s ease, transform .1s ease;
+    position: relative;
+    margin-bottom: 20px;
+    user-select: none;
+  }
+  .drop-zone:hover        { border-color: var(--md-primary); background: var(--md-primary-container); }
+  .drop-zone.dragover     { border-color: var(--md-primary); background: var(--md-primary-container); transform: scale(1.01); }
+  .drop-zone.file-loaded  { border-color: #43A047; background: var(--md-success-container); border-style: solid; }
+
+  .drop-zone-icon { font-size: 42px; display: block; margin-bottom: 10px; }
+  .drop-zone h3   { font-size: 15px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 4px; }
+  .drop-zone p    { font-size: 13px; color: var(--md-on-surface-muted); }
+  .drop-zone .filename { font-weight: 700; color: #2E7D32; font-size: 14px; word-break: break-all; }
+  .drop-zone .filesize  { font-size: 12px; color: #66BB6A; margin-top: 3px; }
+  #fileInput { display: none; }
+
+  /* =====================================================================
+     BOTÃO CONVERTER
+  ===================================================================== */
+  .btn-convert {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 15px;
+    background: var(--md-primary);
+    color: var(--md-on-primary);
+    font-family: var(--font);
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: .3px;
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background .2s, box-shadow .2s, opacity .2s;
+    box-shadow: 0 2px 8px rgba(255,105,0,.30);
+    position: relative;
+    overflow: hidden;
+  }
+  .btn-convert:hover:not(:disabled) { background: #E05800; box-shadow: 0 4px 14px rgba(255,105,0,.40); }
+  .btn-convert:active:not(:disabled){ transform: scale(.985); }
+  .btn-convert:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
+
+  /* Ripple */
+  .btn-convert .ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255,255,255,.35);
+    transform: scale(0);
+    animation: ripple-anim .5s linear;
+    pointer-events: none;
+  }
+  @keyframes ripple-anim { to { transform: scale(4); opacity: 0; } }
+
+  /* Spinner embutido no botão */
+  .btn-convert .spinner {
+    width: 18px; height: 18px;
+    border: 2.5px solid rgba(255,255,255,.5);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    display: none;
+  }
+  .btn-convert.loading .spinner  { display: block; }
+  .btn-convert.loading .btn-text { display: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* =====================================================================
+     FEEDBACK / TOAST
+  ===================================================================== */
+  .toast {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 14px 16px;
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    font-weight: 500;
+    margin-top: 16px;
+    line-height: 1.5;
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity .25s ease, transform .25s ease;
+  }
+  .toast.visible { opacity: 1; transform: translateY(0); }
+  .toast.success { background: var(--md-success-container); color: #1B5E20; }
+  .toast.error   { background: var(--md-error-container);   color: var(--md-error); }
+  .toast.info    { background: var(--md-primary-container); color: var(--md-warning); }
+  .toast-icon    { font-size: 17px; flex-shrink: 0; margin-top: 1px; }
+
+  /* =====================================================================
+     PRÉ-VISUALIZAÇÃO
+  ===================================================================== */
+  .preview-section {
+    margin-top: 24px;
+    display: none;
+  }
+  .section-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--md-on-surface-muted);
+    margin-bottom: 10px;
+  }
+  .preview-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--md-outline);
+    border-radius: var(--radius-md);
+    max-height: 180px;
+    overflow-y: auto;
+  }
+  .preview-wrap::-webkit-scrollbar { height: 5px; width: 5px; }
+  .preview-wrap::-webkit-scrollbar-track { background: transparent; }
+  .preview-wrap::-webkit-scrollbar-thumb { background: #CCC; border-radius: 10px; }
+
+  .preview-wrap table {
+    border-collapse: collapse;
+    font-size: 11px;
+    min-width: 100%;
+    table-layout: auto;
+  }
+  .preview-wrap thead th {
+    background: var(--md-primary);
+    color: #fff;
+    padding: 7px 12px;
+    text-align: left;
+    white-space: nowrap;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .3px;
+    position: sticky; top: 0; z-index: 1;
+  }
+  .preview-wrap tbody td {
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--md-outline-variant);
+    color: var(--md-on-surface);
+    white-space: nowrap;
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .preview-wrap tbody tr:last-child td { border-bottom: none; }
+  .preview-wrap tbody tr:nth-child(even) td { background: var(--md-surface-variant2); }
+
+  /* =====================================================================
+     DIVIDER
+  ===================================================================== */
+  .divider {
+    height: 1px;
+    background: var(--md-outline-variant);
+    margin: 28px 0;
+  }
+
+  /* =====================================================================
+     HISTÓRICO DE DOWNLOADS
+  ===================================================================== */
+  .history-section { display: none; }
+  .history-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .history-count {
+    background: var(--md-primary);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 99px;
+    padding: 2px 8px;
+    min-width: 22px;
+    text-align: center;
+  }
+  .btn-clear-history {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--md-on-surface-muted);
+    background: none;
+    border: 1px solid var(--md-outline);
+    border-radius: var(--radius-sm);
+    padding: 4px 10px;
+    cursor: pointer;
+    font-family: var(--font);
+    transition: background .15s, color .15s;
+  }
+  .btn-clear-history:hover { background: var(--md-surface-variant); color: var(--md-on-surface); }
+
+  .history-list { display: flex; flex-direction: column; gap: 8px; }
+  .history-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: var(--md-surface-variant2);
+    border: 1px solid var(--md-outline-variant);
+    border-radius: var(--radius-md);
+    transition: background .15s;
+    animation: slide-in .25s ease both;
+  }
+  .history-item:hover { background: var(--md-primary-container); border-color: var(--md-primary); }
+  @keyframes slide-in {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .history-item-icon { font-size: 22px; flex-shrink: 0; }
+  .history-item-info { flex: 1; min-width: 0; }
+  .history-item-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .history-item-meta { font-size: 11px; color: var(--md-on-surface-muted); margin-top: 2px; }
+  .btn-redownload {
+    flex-shrink: 0;
+    display: flex; align-items: center; gap: 5px;
+    background: var(--md-primary);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 7px 12px;
+    cursor: pointer;
+    font-family: var(--font);
+    transition: background .15s;
+    white-space: nowrap;
+  }
+  .btn-redownload:hover { background: #E05800; }
+
+  /* =====================================================================
+     INFO BOX
+  ===================================================================== */
+  .info-box {
+    margin-top: 24px;
+    background: var(--md-surface-variant2);
+    border: 1px solid var(--md-outline-variant);
+    border-left: 4px solid var(--md-primary);
+    border-radius: var(--radius-md);
+    padding: 16px 18px;
+    font-size: 13px;
+    color: var(--md-on-surface-muted);
+    line-height: 1.8;
+  }
+  .info-box strong { color: var(--md-on-surface); }
+  .info-box code {
+    background: var(--md-outline-variant);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 12px;
+    color: var(--md-warning);
+  }
+  .info-box ul { padding-left: 0; list-style: none; }
+  .info-box ul li::before { content: '✅ '; }
+  .info-box ul li { margin-top: 4px; }
+
+  /* =====================================================================
+     FOOTER
+  ===================================================================== */
+  .footer {
+    margin-top: 28px;
+    font-size: 12px;
+    color: #BDBDBD;
+    text-align: center;
+  }
+
+  /* =====================================================================
+     RESPONSIVIDADE
+  ===================================================================== */
+  @media (max-width: 480px) {
+    .card { padding: 24px 16px; }
+    .app-bar { gap: 10px; }
+    .app-bar-text h1 { font-size: 17px; }
+  }
 </style>
 </head>
 <body>
+
+<!-- ========== APP BAR ========== -->
+<div class="app-bar">
+  <div class="app-bar-icon">📦</div>
+  <div class="app-bar-text">
+    <h1>Conversor Amazon → Excel</h1>
+    <p>Seller Central · Relatório de pedidos para planilha padrão</p>
+  </div>
+</div>
+
+<!-- ========== CARD PRINCIPAL ========== -->
 <div class="card">
-  <div class="logo">
-    <div class="logo-icon">AZ</div>
-    <div class="logo-text">
-      <h1>Conversor Amazon → Excel</h1>
-      <p>Seller Central · Pedidos para planilha no modelo padrão</p>
-    </div>
-  </div>
 
-  <div class="tabs">
-    <div class="tab active" id="tab-excel" onclick="setMode('excel')">📊 Relatório (TXT ou XLSX) → Excel</div>
-    <div class="tab" id="tab-xml" onclick="setMode('xml')">📄 TXT → XML DocBook</div>
-  </div>
-
-  <div class="drop-zone" id="dropZone">
-    <span class="icon">📊</span>
-    <p>Arraste o arquivo <strong id="acceptLabel">.txt ou .xlsx</strong> aqui</p>
-    <p class="hint">ou clique para selecionar</p>
+  <!-- Drop Zone -->
+  <div class="drop-zone" id="dropZone" role="button" tabindex="0" aria-label="Clique ou arraste um arquivo para converter">
+    <span class="drop-zone-icon" id="dzIcon">📊</span>
+    <h3 id="dzTitle">Arraste o arquivo aqui</h3>
+    <p id="dzSub">Formatos aceitos: <strong>.txt</strong> (separado por abas) ou <strong>.xlsx</strong></p>
+    <p style="font-size:12px;color:#BDBDBD;margin-top:8px">ou clique para selecionar</p>
     <input type="file" id="fileInput" accept=".txt,.xlsx" />
   </div>
 
-  <button class="btn" id="convertBtn" disabled>Converter e Baixar</button>
-  <div class="status" id="status"></div>
+  <!-- Botão principal -->
+  <button class="btn-convert" id="convertBtn" disabled>
+    <div class="spinner" id="btnSpinner"></div>
+    <span class="btn-text" id="btnText">Converter e Baixar</span>
+  </button>
 
+  <!-- Toast de feedback -->
+  <div class="toast" id="toast" role="alert" aria-live="polite">
+    <span class="toast-icon" id="toastIcon"></span>
+    <span id="toastMsg"></span>
+  </div>
+
+  <!-- Pré-visualização -->
   <div class="preview-section" id="previewSection">
-    <h3>📋 Pré-visualização (primeiras linhas)</h3>
+    <p class="section-label">Pré-visualização</p>
     <div class="preview-wrap" id="previewTable"></div>
   </div>
 
-  <div class="info" id="infoBox">
-    <strong>Modo atual: Relatório → Excel</strong><br>
-    Aceita o relatório de pedidos da Amazon exportado como <code>.txt</code> (separado por abas) ou <code>.xlsx</code> (com problema de separação).<br><br>
-    ✅ Separa automaticamente em <strong>37 colunas</strong> no formato padrão<br>
-    ✅ Numeração <strong>Ref.</strong> automática sequencial<br>
-    ✅ Processamento 100% local — nenhum dado enviado para servidor
+  <!-- Divisor -->
+  <div class="divider" id="historySep" style="display:none"></div>
+
+  <!-- Histórico de Downloads -->
+  <div class="history-section" id="historySection">
+    <div class="history-header">
+      <div style="display:flex;align-items:center;gap:8px">
+        <p class="section-label" style="margin-bottom:0">Histórico da sessão</p>
+        <span class="history-count" id="historyCount">0</span>
+      </div>
+      <button class="btn-clear-history" id="clearHistoryBtn">Limpar</button>
+    </div>
+    <div class="history-list" id="historyList"></div>
   </div>
+
+  <!-- Info Box -->
+  <div class="info-box" id="infoBox">
+    <strong>Modo: Relatório → Excel</strong><br>
+    Aceita o relatório de pedidos exportado do Amazon Seller Central como <code>.txt</code> (separado por abas)
+    ou <code>.xlsx</code> com separação compactada.<br>
+    <ul>
+      <li>Separação automática em <strong>37 colunas</strong> no formato padrão</li>
+      <li>Numeração <strong>Ref.</strong> automática e sequencial</li>
+      <li>Processamento 100% local — nenhum dado é enviado ao servidor</li>
+    </ul>
+  </div>
+
 </div>
-<div class="footer">Conversor local · Nenhum dado armazenado</div>
+
+<div class="footer">Processamento local · Seus dados não saem do navegador</div>
+
 
 <script>
-// ============================================================================
-// NÚCLEO DO CONVERSOR (Antigo Converter.js - Embutido para evitar erros de 404)
-// ============================================================================
+/* ============================================================================
+   CONSTANTES DO MODELO AMAZON
+   Ordem e nomes das colunas do template padrão esperado pela operação.
+============================================================================ */
 const MODEL_COLS = [
   'amazon-order-id', 'merchant-order-id', 'purchase-date', 'last-updated-date',
   'order-status', 'fulfillment-channel', 'sales-channel', 'order-channel',
@@ -187,26 +462,43 @@ const MODEL_COLS = [
   'purchase-order-number', 'price-designation',
 ];
 
+// Separador especial presente em arquivos XLSX compactados exportados pela Amazon
 const SEP_XLSX = '\xa0 \xa0 \xa0 \xa0 ';
 
+
+/* ============================================================================
+   CONVERSOR — NÚCLEO
+   Métodos puros de parse e construção do workbook. Sem efeitos colaterais de UI.
+============================================================================ */
 const AmazonConverter = {
-  // Faz o parse do arquivo bruto .txt (TSV) da Amazon
+
+  /**
+   * Parseia arquivo .txt (TSV) da Amazon.
+   * @param {string} textContent — conteúdo bruto UTF-8 do arquivo
+   * @returns {{ headers: string[], rows: object[] }}
+   */
   parseTxt(textContent) {
-    const lines = textContent.split(/\r?\n/).filter(line => line.trim() !== '');
-    if (!lines.length) throw new Error('O arquivo TXT está vazio.');
+    const lines = textContent.split(/\r?\n/).filter(l => l.trim() !== '');
+    if (!lines.length) throw new Error('O arquivo TXT está vazio ou inválido.');
 
     const sourceHeaders = lines[0].split('\t').map(h => h.trim());
+    if (sourceHeaders.length < 5) throw new Error('Cabeçalho inválido — verifique se o arquivo é um relatório de pedidos Amazon.');
+
     const dataRows = lines.slice(1).map(line => {
       const parts = line.split('\t').map(v => v.trim());
       const obj = {};
-      sourceHeaders.forEach((h, i) => { obj[h] = parts[i] !== undefined ? parts[i] : ''; });
+      sourceHeaders.forEach((h, i) => { obj[h] = parts[i] ?? ''; });
       return obj;
     });
 
-    return this.mapToModel(dataRows);
+    return this._mapToModel(dataRows);
   },
 
-  // Faz o parse do arquivo .xlsx compactado/mal-separado
+  /**
+   * Parseia arquivo .xlsx, tratando tanto o formato padrão quanto o compactado.
+   * @param {Uint8Array|ArrayBuffer} arrayBuffer
+   * @returns {{ headers: string[], rows: object[] }}
+   */
   parseXlsx(arrayBuffer) {
     const wb = XLSX.read(arrayBuffer, { type: 'array' });
     const ws = wb.Sheets[wb.SheetNames[0]];
@@ -214,233 +506,345 @@ const AmazonConverter = {
 
     if (!rawRows.length) throw new Error('O arquivo XLSX está vazio.');
 
-    const headerRow = String(rawRows[0][0] || '');
-    const isMalSep = headerRow.includes(SEP_XLSX);
+    const headerCell = String(rawRows[0][0] || '');
+    const isMalSep = headerCell.includes(SEP_XLSX);
 
     let sourceHeaders, dataRows;
 
     if (isMalSep) {
-      sourceHeaders = headerRow.split(SEP_XLSX).map(h => h.trim());
+      // Formato compactado: toda a linha numa única célula, separada por SEP_XLSX
+      sourceHeaders = headerCell.split(SEP_XLSX).map(h => h.trim());
       dataRows = rawRows.slice(1).map(row => {
         const parts = String(row[0] || '').split(SEP_XLSX).map(v => v.trim());
         const obj = {};
-        sourceHeaders.forEach((h, i) => { obj[h] = parts[i] !== undefined ? parts[i] : ''; });
+        sourceHeaders.forEach((h, i) => { obj[h] = parts[i] ?? ''; });
         return obj;
       });
     } else {
+      // Formato padrão: colunas já separadas
       const jsonRows = XLSX.utils.sheet_to_json(ws, { defval: '' });
-      sourceHeaders = Object.keys(jsonRows[0] || {});
+      if (!jsonRows.length) throw new Error('Planilha XLSX sem dados.');
+      sourceHeaders = Object.keys(jsonRows[0]);
       dataRows = jsonRows;
     }
 
-    return this.mapToModel(dataRows);
+    return this._mapToModel(dataRows);
   },
 
-  // Formata os dados extraídos mapeando estritamente para as colunas do modelo e aplicando a coluna Ref.
-  mapToModel(dataRows) {
+  /**
+   * Mapeia linhas de qualquer origem para as colunas fixas do modelo,
+   * fazendo correspondência case-insensitive e adicionando coluna Ref.
+   * @private
+   */
+  _mapToModel(dataRows) {
     const finalHeaders = ['Ref.', ...MODEL_COLS];
+
     const finalRows = dataRows.map((src, idx) => {
       const out = { 'Ref.': idx + 1 };
+
       MODEL_COLS.forEach(col => {
+        // Tenta match exato, depois case-insensitive
         let val = src[col];
         if (val === undefined) {
-          const found = Object.keys(src).find(k => k.trim().toLowerCase() === col.toLowerCase());
-          val = found ? src[found] : '';
+          const key = Object.keys(src).find(k => k.trim().toLowerCase() === col.toLowerCase());
+          val = key ? src[key] : '';
         }
-        out[col] = val !== undefined && val !== null ? String(val).trim() : '';
+        out[col] = (val !== undefined && val !== null) ? String(val).trim() : '';
       });
+
       return out;
     });
 
     return { headers: finalHeaders, rows: finalRows };
   },
 
-  // Cria a estrutura visual da planilha estruturada (.xlsx)
+  /**
+   * Constrói o workbook SheetJS formatado para download.
+   * @param {string[]} headers
+   * @param {object[]} rows
+   * @returns {XLSX.WorkBook}
+   */
   buildWorkbook(headers, rows) {
     const wb = XLSX.utils.book_new();
-    const sheetData = [headers];
-    
-    rows.forEach(row => {
-      sheetData.push(headers.map(h => row[h] !== undefined ? row[h] : ''));
-    });
+
+    // Monta array de arrays para eficiência (aoa = array of arrays)
+    const sheetData = [
+      headers,
+      ...rows.map(row => headers.map(h => (row[h] !== undefined ? row[h] : '')))
+    ];
 
     const ws = XLSX.utils.aoa_to_sheet(sheetData);
 
+    // Larguras de coluna otimizadas para leitura
     ws['!cols'] = headers.map(h => {
-      const maxLen = Math.max(h.length, 14);
-      if (h === 'product-name') return { wch: 50 };
-      if (h === 'Ref.') return { wch: 6 };
-      if (['purchase-date', 'last-updated-date'].includes(h)) return { wch: 22 };
-      if (['cpf', 'amazon-order-id'].includes(h)) return { wch: 20 };
-      return { wch: Math.min(maxLen + 4, 30) };
+      if (h === 'Ref.')             return { wch: 6  };
+      if (h === 'product-name')     return { wch: 52 };
+      if (h === 'amazon-order-id')  return { wch: 22 };
+      if (h === 'cpf')              return { wch: 18 };
+      if (['purchase-date','last-updated-date'].includes(h)) return { wch: 24 };
+      return { wch: Math.min(Math.max(h.length + 4, 14), 30) };
     });
 
-    XLSX.utils.book_append_sheet(wb, ws, 'Planilha1');
+    XLSX.utils.book_append_sheet(wb, ws, 'Pedidos');
     return wb;
   },
-
-  // Converte o TXT original para XML DocBook
-  toXml(rawBinary) {
-    const lines = rawBinary.split('\n');
-    if (lines.length && lines[lines.length - 1].trim() === '') lines.pop();
-
-    const paras = lines.map(line => {
-      const hasCR = line.endsWith('\r');
-      const content = hasCR ? line.slice(0, -1) : line;
-      const spaced = content.replace(/\t/g, '        ');
-      const escaped = this.escapeXml(spaced);
-      return '  <para>' + escaped + (hasCR ? '&#13;' : '') + '</para>';
-    }).join('\n');
-
-    return '<?xml version="1.0" encoding="UTF-8"?>\n' +
-      '<!DOCTYPE article PUBLIC "-//OASIS//DTD DocBook XML V4.1.2//EN" ' +
-      '"http://www.oasis-open.org/docbook/xml/4.1.2/docbookx.dtd">\n' +
-      '<article lang="">\n' +
-      paras + '\n' +
-      '</article>\n';
-  },
-
-  escapeXml(str) {
-    return str
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
-  }
 };
 
-// ============================================================================
-// LÓGICA DO FRONT-END / INTERAÇÃO DO USUÁRIO
-// ============================================================================
-let mode = 'excel';
-let selectedFile = null;
 
-const dropZone = document.getElementById('dropZone');
-const fileInput = document.getElementById('fileInput');
-const btn = document.getElementById('convertBtn');
-const statusEl = document.getElementById('status');
-const previewSection = document.getElementById('previewSection');
-const previewTable = document.getElementById('previewTable');
-const infoBox = document.getElementById('infoBox');
-const acceptLabel = document.getElementById('acceptLabel');
+/* ============================================================================
+   DOWNLOAD — robusto, sem vazamento de memória
+============================================================================ */
+/**
+ * Dispara o download de um Blob como arquivo.
+ * Revoga a object URL após um timeout seguro.
+ */
+function downloadBlob(blob, filename) {
+  let url;
+  try {
+    url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  } finally {
+    // Revoga depois de 60s para garantir que o download começou
+    if (url) setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  }
+}
 
-function setMode(m) {
-  mode = m;
-  selectedFile = null;
-  btn.disabled = true;
-  setStatus('', '');
-  previewSection.style.display = 'none';
+/**
+ * Gera o arquivo XLSX final e salva no histórico.
+ * Retorna { blob, filename, rowCount } para o chamador.
+ */
+function generateExcelFile(headers, rows, originalFilename) {
+  const wb = AmazonConverter.buildWorkbook(headers, rows);
 
-  document.getElementById('tab-excel').className = 'tab' + (m === 'excel' ? ' active' : '');
-  document.getElementById('tab-xml').className = 'tab' + (m === 'xml' ? ' active' : '');
+  // Serializa para ArrayBuffer de forma segura
+  const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  const blob = new Blob([wbout], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  });
 
-  if (m === 'excel') {
-    fileInput.accept = '.txt,.xlsx';
-    acceptLabel.textContent = '.txt ou .xlsx';
-    infoBox.innerHTML = `<strong>Modo atual: Relatório → Excel</strong><br>
-      Aceita o relatório de pedidos da Amazon exportado como <code>.txt</code> (separado por abas) ou <code>.xlsx</code> (com problema de separação).<br><br>
-      ✅ Separa automaticamente em <strong>37 colunas</strong> no formato padrão<br>
-      ✅ Numeração <strong>Ref.</strong> automática sequencial<br>
-      ✅ Processamento 100% local — nenhum dado enviado para servidor`;
-  } else {
-    fileInput.accept = '.txt';
-    acceptLabel.textContent = '.txt';
-    infoBox.innerHTML = `<strong>Modo atual: TXT → XML DocBook</strong><br>
-      Aceita o arquivo <code>.txt</code> exportado do Seller Central e converte para formato XML DocBook.<br><br>
-      ✅ Preserva encoding e quebras de linha<br>
-      ✅ Compatível com Amazon Seller Central<br>
-      ✅ Processamento 100% local — nenhum dado enviado para servidor`;
+  const baseName = originalFilename.replace(/\.(xlsx|txt)$/i, '');
+  const filename = `${baseName}_convertido.xlsx`;
+
+  return { blob, filename, rowCount: rows.length, headerCount: headers.length };
+}
+
+
+/* ============================================================================
+   HISTÓRICO DA SESSÃO
+   Armazena referências a Blobs para redownload sem re-processar.
+============================================================================ */
+const sessionHistory = []; // [{ id, filename, rowCount, headerCount, blob, timestamp }]
+
+function addToHistory(entry) {
+  sessionHistory.unshift(entry); // mais recente primeiro
+  renderHistory();
+}
+
+function renderHistory() {
+  const section  = document.getElementById('historySection');
+  const sep      = document.getElementById('historySep');
+  const list     = document.getElementById('historyList');
+  const countBadge = document.getElementById('historyCount');
+
+  if (!sessionHistory.length) {
+    section.style.display = 'none';
+    sep.style.display = 'none';
+    return;
   }
 
-  resetDropZone();
+  section.style.display = 'block';
+  sep.style.display = 'block';
+  countBadge.textContent = sessionHistory.length;
+
+  list.innerHTML = '';
+  sessionHistory.forEach(item => {
+    const el = document.createElement('div');
+    el.className = 'history-item';
+    el.innerHTML = `
+      <span class="history-item-icon">📗</span>
+      <div class="history-item-info">
+        <div class="history-item-name" title="${item.filename}">${item.filename}</div>
+        <div class="history-item-meta">${item.rowCount} linhas · ${item.headerCount} colunas · ${item.timestamp}</div>
+      </div>
+      <button class="btn-redownload" data-id="${item.id}" title="Baixar novamente">
+        ⬇ Baixar
+      </button>
+    `;
+    list.appendChild(el);
+  });
+
+  // Eventos de redownload
+  list.querySelectorAll('.btn-redownload').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = Number(btn.dataset.id);
+      const found = sessionHistory.find(h => h.id === id);
+      if (found) {
+        downloadBlob(found.blob, found.filename);
+        setToast('info', '📥', `Re-download de <strong>${found.filename}</strong> iniciado.`);
+      }
+    });
+  });
 }
 
-function resetDropZone() {
-  dropZone.className = 'drop-zone';
-  dropZone.innerHTML = `
-    <span class="icon">${mode === 'excel' ? '📊' : '📄'}</span>
-    <p>Arraste o arquivo <strong id="acceptLabel">${mode === 'excel' ? '.txt ou .xlsx' : '.txt'}</strong> aqui</p>
-    <p class="hint">ou clique para selecionar</p>
-    <input type="file" id="fileInput" accept="${mode === 'excel' ? '.txt,.xlsx' : '.txt'}" />
-  `;
-  const newInput = dropZone.querySelector('input');
-  newInput.addEventListener('change', () => { if (newInput.files[0]) setFile(newInput.files[0]); });
-  dropZone.addEventListener('click', () => newInput.click());
-}
+document.getElementById('clearHistoryBtn').addEventListener('click', () => {
+  sessionHistory.length = 0;
+  renderHistory();
+});
 
-dropZone.addEventListener('click', () => dropZone.querySelector('input').click());
+
+/* ============================================================================
+   UI — ESTADO E EVENTOS
+============================================================================ */
+let selectedFile = null;
+let historyIdCounter = 0;
+
+const dropZone   = document.getElementById('dropZone');
+const fileInput  = document.getElementById('fileInput');
+const convertBtn = document.getElementById('convertBtn');
+const btnText    = document.getElementById('btnText');
+const btnSpinner = document.getElementById('btnSpinner');
+
+// ---- Drop Zone ----
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') fileInput.click(); });
 dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
 dropZone.addEventListener('drop', e => {
   e.preventDefault();
   dropZone.classList.remove('dragover');
-  if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
+  const f = e.dataTransfer.files[0];
+  if (f) setFile(f);
 });
 fileInput.addEventListener('change', () => { if (fileInput.files[0]) setFile(fileInput.files[0]); });
 
+/**
+ * Valida e registra o arquivo selecionado, atualizando a UI da drop zone.
+ */
 function setFile(file) {
   const ext = file.name.split('.').pop().toLowerCase();
-  
-  if (mode === 'excel' && ext !== 'txt' && ext !== 'xlsx') {
-    setStatus('error', `⚠️ Selecione um arquivo .txt ou .xlsx`);
-    return;
-  }
-  if (mode === 'xml' && ext !== 'txt') {
-    setStatus('error', `⚠️ Selecione um arquivo .txt`);
+
+  if (ext !== 'txt' && ext !== 'xlsx') {
+    setToast('error', '⚠️', 'Formato inválido. Selecione um arquivo <strong>.txt</strong> ou <strong>.xlsx</strong>.');
     return;
   }
 
   selectedFile = file;
-  dropZone.className = 'drop-zone file-ok';
-  dropZone.innerHTML = `
-    <span class="icon">✅</span>
-    <p class="filename">${file.name}</p>
-    <p class="hint">${(file.size/1024).toFixed(1)} KB · clique para trocar</p>
-    <input type="file" accept="${mode === 'excel' ? '.txt,.xlsx' : '.txt'}" style="display:none" />
-  `;
-  const inp = dropZone.querySelector('input');
-  inp.addEventListener('change', e => { if (e.target.files[0]) setFile(e.target.files[0]); });
-  dropZone.addEventListener('click', () => inp.click());
-  btn.disabled = false;
-  setStatus('', '');
-  previewSection.style.display = 'none';
+  convertBtn.disabled = false;
+  hideToast();
+  document.getElementById('previewSection').style.display = 'none';
+
+  // Feedback visual da drop zone
+  dropZone.className = 'drop-zone file-loaded';
+  document.getElementById('dzIcon').textContent  = ext === 'txt' ? '📄' : '📗';
+  document.getElementById('dzTitle').innerHTML   = `<span class="filename">${file.name}</span>`;
+  document.getElementById('dzSub').innerHTML     = `<span class="filesize">${(file.size / 1024).toFixed(1)} KB · clique para trocar o arquivo</span>`;
 }
 
-btn.addEventListener('click', () => {
+/**
+ * Reseta a drop zone para o estado inicial.
+ */
+function resetDropZone() {
+  selectedFile = null;
+  convertBtn.disabled = true;
+  dropZone.className = 'drop-zone';
+  document.getElementById('dzIcon').textContent = '📊';
+  document.getElementById('dzTitle').textContent = 'Arraste o arquivo aqui';
+  document.getElementById('dzSub').innerHTML = 'Formatos aceitos: <strong>.txt</strong> (separado por abas) ou <strong>.xlsx</strong>';
+  fileInput.value = '';
+}
+
+// ---- Botão converter ----
+convertBtn.addEventListener('click', (e) => {
+  // Ripple
+  const rect = convertBtn.getBoundingClientRect();
+  const span = document.createElement('span');
+  span.className = 'ripple';
+  const size = Math.max(rect.width, rect.height);
+  span.style.cssText = `width:${size}px;height:${size}px;left:${e.clientX-rect.left-size/2}px;top:${e.clientY-rect.top-size/2}px`;
+  convertBtn.appendChild(span);
+  span.addEventListener('animationend', () => span.remove());
+
   if (!selectedFile) return;
-  if (mode === 'excel') {
-    convertExcel(selectedFile);
-  } else {
-    convertXml(selectedFile);
-  }
+  runConversion(selectedFile);
 });
 
-function convertExcel(file) {
-  setStatus('', '⏳ Processando...');
+
+/* ============================================================================
+   CONVERSÃO — ORQUESTRAÇÃO
+============================================================================ */
+/**
+ * Executa o pipeline completo de leitura → parse → gerar Excel → download.
+ * Garante que a UI reflita cada estado (loading, sucesso, erro).
+ */
+function runConversion(file) {
+  setLoading(true);
+  hideToast();
+
   const ext = file.name.split('.').pop().toLowerCase();
   const reader = new FileReader();
-  
-  reader.onload = function(e) {
-    try {
-      let result;
-      if (ext === 'txt') {
-        result = AmazonConverter.parseTxt(e.target.result);
-      } else {
-        result = AmazonConverter.parseXlsx(new Uint8Array(e.target.result));
-      }
 
-      showPreview(result.headers, result.rows);
-      const wb = AmazonConverter.buildWorkbook(result.headers, result.rows);
-      const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-      downloadBlob(new Blob([wbout], { type: 'application/octet-stream' }),
-        file.name.replace(/\.(xlsx|txt)$/i, '') + '_convertido.xlsx');
-      setStatus('success', `✅ Sucesso! ${result.rows.length} linhas · ${result.headers.length} colunas`);
-    } catch(err) {
-      setStatus('error', '❌ Erro: ' + err.message);
-      console.error(err);
-    }
+  reader.onerror = () => {
+    setLoading(false);
+    setToast('error', '❌', 'Não foi possível ler o arquivo. Verifique se ele não está corrompido.');
   };
 
+  reader.onload = function (e) {
+    // setTimeout(0) libera o thread para a UI atualizar antes do processamento pesado
+    setTimeout(() => {
+      try {
+        let result;
+
+        if (ext === 'txt') {
+          result = AmazonConverter.parseTxt(e.target.result);
+        } else {
+          // ArrayBuffer → Uint8Array para compatibilidade com SheetJS
+          result = AmazonConverter.parseXlsx(new Uint8Array(e.target.result));
+        }
+
+        if (!result.rows.length) {
+          throw new Error('Nenhuma linha de dados encontrada no arquivo.');
+        }
+
+        // Gera o arquivo de saída
+        const { blob, filename, rowCount, headerCount } = generateExcelFile(
+          result.headers, result.rows, file.name
+        );
+
+        // Dispara download
+        downloadBlob(blob, filename);
+
+        // Pré-visualização
+        showPreview(result.headers, result.rows);
+
+        // Adiciona ao histórico
+        addToHistory({
+          id: ++historyIdCounter,
+          filename,
+          rowCount,
+          headerCount,
+          blob,
+          timestamp: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        });
+
+        setLoading(false);
+        setToast('success', '✅', `Arquivo gerado com sucesso — <strong>${rowCount} linhas</strong> · ${headerCount} colunas`);
+        resetDropZone();
+
+      } catch (err) {
+        setLoading(false);
+        setToast('error', '❌', `Erro ao processar: ${err.message}`);
+        console.error('[AmazonConverter]', err);
+      }
+    }, 0);
+  };
+
+  // Lê como texto para TXT, como ArrayBuffer para XLSX
   if (ext === 'txt') {
     reader.readAsText(file, 'utf-8');
   } else {
@@ -448,44 +852,61 @@ function convertExcel(file) {
   }
 }
 
-function convertXml(file) {
-  setStatus('', '⏳ Processando...');
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    try {
-      const xml = AmazonConverter.toXml(e.target.result);
-      downloadBlob(new Blob([xml], { type: 'application/xml;charset=utf-8' }),
-        file.name.replace(/\.txt$/i, '') + '.xml');
-      setStatus('success', '✅ XML gerado e baixado com sucesso!');
-    } catch(err) {
-      setStatus('error', '❌ Erro: ' + err.message);
-    }
-  };
-  reader.readAsBinaryString(file);
+
+/* ============================================================================
+   HELPERS DE UI
+============================================================================ */
+function setLoading(active) {
+  convertBtn.disabled = active;
+  convertBtn.classList.toggle('loading', active);
+}
+
+let toastTimer = null;
+function setToast(type, icon, html) {
+  const el   = document.getElementById('toast');
+  const ico  = document.getElementById('toastIcon');
+  const msg  = document.getElementById('toastMsg');
+
+  el.className = `toast ${type}`;
+  ico.textContent = icon;
+  msg.innerHTML = html;
+
+  // Força reflow para a transição funcionar
+  void el.offsetWidth;
+  el.classList.add('visible');
+
+  // Auto-esconder após 8s para erros, 5s para sucesso
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => hideToast(), type === 'error' ? 8000 : 5000);
+}
+
+function hideToast() {
+  document.getElementById('toast').classList.remove('visible');
 }
 
 function showPreview(headers, rows) {
-  const previewRows = rows.slice(0, 4);
-  let html = '<table><tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr>';
-  for (const row of previewRows) {
-    html += '<tr>' + headers.map(h => `<td title="${(row[h]||'')}">` + (row[h]||'') + '</td>').join('') + '</tr>';
-  }
-  html += '</table>';
-  previewTable.innerHTML = html;
-  previewSection.style.display = 'block';
+  const section = document.getElementById('previewSection');
+  const table   = document.getElementById('previewTable');
+  const sample  = rows.slice(0, 5);
+
+  const ths = headers.map(h => `<th>${escapeHtml(h)}</th>`).join('');
+  const trs = sample.map(row =>
+    '<tr>' + headers.map(h => {
+      const v = String(row[h] ?? '');
+      return `<td title="${escapeHtml(v)}">${escapeHtml(v.slice(0, 40))}</td>`;
+    }).join('') + '</tr>'
+  ).join('');
+
+  table.innerHTML = `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
+  section.style.display = 'block';
 }
 
-function downloadBlob(blob, filename) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = filename;
-  document.body.appendChild(a); a.click(); a.remove();
-  URL.revokeObjectURL(url);
-}
-
-function setStatus(type, html) {
-  statusEl.className = 'status ' + type;
-  statusEl.innerHTML = html;
+function escapeHtml(str) {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 </script>
 </body>
